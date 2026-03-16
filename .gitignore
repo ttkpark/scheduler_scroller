@@ -1,0 +1,15 @@
+# Node
+node_modules/
+npm-debug.log*
+*.log
+
+# Python venv
+.venv/
+
+# Uploads (대용량 사용자 파일)
+uploads/
+
+# OS/IDE 잡파일 (선택)
+.DS_Store
+Thumbs.db
+
