@@ -17,7 +17,7 @@
 ## 2. 소스 코드 가져오기
 
 ```bash
-git clone <레포지토리-URL> scheduler_scroller
+git clone https://github.com/ttkpark/scheduler_scroller
 cd scheduler_scroller
 ```
 

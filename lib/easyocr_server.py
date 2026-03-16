@@ -7,6 +7,13 @@ import sys
 import json
 import os
 
+# 리소스가 적은 환경에서 CPU/메모리 사용량을 줄이기 위한 설정
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+
 # Windows에서 cp949 문제 방지 - stdout/stderr를 utf-8로 강제
 if sys.platform == 'win32':
     import io
