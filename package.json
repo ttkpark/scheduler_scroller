@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "setup:py:win": "python -m venv .venv && .venv\\\\Scripts\\\\pip install -r requirements.txt",
+    "setup:py:linux": "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

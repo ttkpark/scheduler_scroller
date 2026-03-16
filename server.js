@@ -138,7 +138,7 @@ function getLocalIPv4() {
   }
   return ips;
 }
-const PORT = process.env.PORT || 3500;
+const PORT = process.env.PORT || 8003;
 app.get('/api/server-info', (req, res) => {
   const localIps = getLocalIPv4();
   const urls = localIps.map(ip => `http://${ip}:${PORT}`);
