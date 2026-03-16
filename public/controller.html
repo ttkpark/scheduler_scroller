@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>예배 순서 컨트롤러</title>
+  <link rel="stylesheet" href="/themes.css">
+  <script src="/theme.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* Header */
+    .header {
+      padding: 1rem 1.5rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-title {
+      font-size: 1rem;
+      font-weight: 700;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .conn-badge {
+      font-size: 0.7rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid #4ade80;
+      color: #4ade80;
+      background: rgba(74,222,128,0.1);
+    }
+    .conn-badge.disconnected {
+      border-color: #f87171;
+      color: #f87171;
+      background: rgba(248,113,113,0.1);
+    }
+
+    /* Current item display */
+    #current-card {
+      margin: 1.5rem;
+      background: var(--current-bg);
+      border: 1px solid var(--current-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 0 30px rgba(124,58,237,0.2);
+    }
+    #current-label {
+      font-size: 0.65rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+    #current-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.4rem;
+    }
+    #current-detail {
+      font-size: 0.85rem;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+    #current-meta {
+      margin-top: 0.8rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    #item-counter-badge {
+      font-size: 0.75rem;
+      background: rgba(124,58,237,0.3);
+      color: var(--accent);
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+    }
+
+    /* Progress bar */
+    #progress-wrap {
+      margin: 0 1.5rem;
+      height: 6px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    #progress-fill {
+      height: 100%;
+      background: var(--accent-grad);
+      border-radius: 999px;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    /* Schedule mini list */
+    #mini-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .mini-item {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.7rem 1rem;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(255,255,255,0.02);
+    }
+    .mini-item:active { transform: scale(0.97); }
+    .mini-item.current {
+      border-color: var(--accent);
+      background: rgba(124,58,237,0.15);
+    }
+    .mini-item.done { opacity: var(--done-opacity, 0.35); }
+    .mini-item.upcoming { opacity: 0.7; }
+    .mini-num {
+      font-size: 0.7rem;
+      color: var(--text3);
+      min-width: 20px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .mini-item.current .mini-num { color: var(--accent); }
+    .mini-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      flex: 1;
+    }
+    .mini-item.current .mini-title { color: var(--text2); }
+    .mini-badge {
+      font-size: 0.6rem;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid;
+    }
+
+    /* Control buttons */
+    .controls {
+      padding: 1.2rem 1.5rem 2rem;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      position: sticky;
+      bottom: 0;
+    }
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+      margin-bottom: 0.8rem;
+    }
+    .btn {
+      padding: 1.1rem;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(0.95); }
+    .btn-prev {
+      background: var(--border);
+      color: var(--accent);
+      border: 1px solid var(--border2);
+    }
+    .btn-prev:active { background: var(--border2); }
+    .btn-next {
+      background: var(--accent-grad);
+      color: white;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.4);
+    }
+    .btn-next:active { filter: brightness(0.85); }
+
+    .btn-row-secondary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+    .btn-small {
+      padding: 0.7rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text2);
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .btn-small:active { background: var(--border); transform: scale(0.96); }
+    .btn-auto-on { border-color: #4ade80; color: #4ade80; background: rgba(74,222,128,0.1); }
+
+    /* Speed control */
+    #speed-section {
+      margin-top: 0.8rem;
+      display: none;
+    }
+    #speed-section.show { display: block; }
+    #speed-label {
+      font-size: 0.75rem;
+      color: var(--text2);
+      margin-bottom: 0.4rem;
+    }
+    #speed-range {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    /* Category colors */
+    .cat-worship { border-color: #f59e0b; color: #f59e0b; }
+    .cat-prayer  { border-color: #10b981; color: #10b981; }
+    .cat-sermon  { border-color: #3b82f6; color: #3b82f6; }
+    .cat-hymn    { border-color: #ec4899; color: #ec4899; }
+    .cat-offering{ border-color: #f97316; color: #f97316; }
+    .cat-default { border-color: var(--text3); color: var(--text2); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">🎮 예배 컨트롤러</div>
+  <span class="conn-badge disconnected" id="conn-badge">연결 중...</span>
+</div>
+
+<div id="current-card">
+  <div id="current-label">현재 순서</div>
+  <div id="current-title">순서를 불러오는 중...</div>
+  <div id="current-detail"></div>
+  <div id="current-meta">
+    <span id="item-counter-badge">- / -</span>
+  </div>
+</div>
+
+<div id="progress-wrap">
+  <div id="progress-fill"></div>
+</div>
+
+<div id="mini-list"></div>
+
+<div class="controls">
+  <div class="btn-row">
+    <button class="btn btn-prev" id="btn-prev" onclick="go('prev')">
+      ← 이전
+    </button>
+    <button class="btn btn-next" id="btn-next" onclick="go('next')">
+      다음 →
+    </button>
+  </div>
+  <div class="btn-row-secondary">
+    <button class="btn-small" id="btn-auto" onclick="toggleAutoScroll()">▶ 자동 스크롤</button>
+    <button class="btn-small" onclick="toggleSpeedSection()">⚙ 속도 조절</button>
+  </div>
+  <div id="speed-section">
+    <div id="speed-label">이동 속도: <span id="speed-val">3</span></div>
+    <input type="range" id="speed-range" min="1" max="9" value="3"
+      oninput="onSpeedChange(this.value)">
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let state = { items: [], currentIndex: 0, autoScroll: false, scrollSpeed: 3 };
+
+  socket.on('connect', () => {
+    document.getElementById('conn-badge').textContent = '연결됨';
+    document.getElementById('conn-badge').className = 'conn-badge';
+  });
+  socket.on('disconnect', () => {
+    document.getElementById('conn-badge').textContent = '연결 끊김';
+    document.getElementById('conn-badge').className = 'conn-badge disconnected';
+  });
+
+  socket.on('schedule:update', (newState) => {
+    state = newState;
+    render();
+  });
+
+  // Initial load from HTTP
+  fetch('/api/state').then(r => r.json()).then(s => {
+    state = s;
+    render();
+  });
+
+  function go(dir) {
+    if (dir === 'next') socket.emit('control:next');
+    else socket.emit('control:prev');
+    // Haptic feedback on supported devices
+    if (navigator.vibrate) navigator.vibrate(30);
+  }
+
+  function goTo(index) {
+    socket.emit('control:goto', { index });
+    if (navigator.vibrate) navigator.vibrate(20);
+  }
+
+  function toggleAutoScroll() {
+    socket.emit('control:autoScroll', {
+      enabled: !state.autoScroll,
+      speed: state.scrollSpeed
+    });
+  }
+
+  function toggleSpeedSection() {
+    document.getElementById('speed-section').classList.toggle('show');
+  }
+
+  function onSpeedChange(val) {
+    document.getElementById('speed-val').textContent = val;
+    socket.emit('control:autoScroll', { enabled: state.autoScroll, speed: parseInt(val) });
+  }
+
+  function getCategoryLabel(cat) {
+    const map = {
+      worship: '경배찬양', prayer: '기도', sermon: '설교',
+      hymn: '찬송', offering: '헌금', announcement: '광고',
+      default: '순서'
+    };
+    return map[cat] || (cat || '순서');
+  }
+
+  function render() {
+    if (!state.items || state.items.length === 0) {
+      document.getElementById('current-title').textContent = '등록된 순서가 없습니다';
+      document.getElementById('current-detail').textContent = '관리자 페이지에서 순서를 입력해주세요';
+      document.getElementById('item-counter-badge').textContent = '- / -';
+      document.getElementById('progress-fill').style.width = '0%';
+      document.getElementById('mini-list').innerHTML = '';
+      return;
+    }
+
+    const idx = state.currentIndex;
+    const item = state.items[idx];
+
+    // Update current card
+    document.getElementById('current-title').textContent = item.title;
+    document.getElementById('current-detail').textContent = item.detail || '';
+    document.getElementById('item-counter-badge').textContent =
+      `${idx + 1} / ${state.items.length}`;
+
+    const progress = state.items.length > 1 ? (idx / (state.items.length - 1)) * 100 : 100;
+    document.getElementById('progress-fill').style.width = progress + '%';
+
+    // Auto scroll button state
+    const btnAuto = document.getElementById('btn-auto');
+    if (state.autoScroll) {
+      btnAuto.textContent = '⏸ 자동 중지';
+      btnAuto.className = 'btn-small btn-auto-on';
+    } else {
+      btnAuto.textContent = '▶ 자동 스크롤';
+      btnAuto.className = 'btn-small';
+    }
+
+    // Speed range
+    document.getElementById('speed-range').value = state.scrollSpeed;
+    document.getElementById('speed-val').textContent = state.scrollSpeed;
+
+    // Mini list
+    const miniList = document.getElementById('mini-list');
+    miniList.innerHTML = '';
+    state.items.forEach((it, i) => {
+      let cls = i < idx ? 'done' : i === idx ? 'current' : 'upcoming';
+      const catClass = `cat-${it.category || 'default'}`;
+      const div = document.createElement('div');
+      div.className = `mini-item ${cls}`;
+      div.onclick = () => goTo(i);
+      div.innerHTML = `
+        <span class="mini-num">${it.order || i+1}</span>
+        <span class="mini-title">${escHtml(it.title)}</span>
+        <span class="mini-badge ${catClass}">${getCategoryLabel(it.category)}</span>
+      `;
+      miniList.appendChild(div);
+    });
+
+    // Scroll current into view in mini list
+    const currentEl = miniList.querySelector('.current');
+    if (currentEl) {
+      currentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>

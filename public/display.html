@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>예배 순서 디스플레이</title>
+  <link rel="stylesheet" href="/themes.css">
+  <script src="/theme.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* Header */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.8rem 2rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+      flex-shrink: 0;
+    }
+    #header .title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    #header .clock {
+      font-size: 1.5rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+    #header .date-info {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    /* Progress bar */
+    #progress-bar-wrap {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    #progress-bar {
+      height: 100%;
+      background: var(--accent-grad);
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    /* Main scroll container */
+    #scroll-container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #schedule-list {
+      position: absolute;
+      width: 100%;
+      padding: 2rem 3rem;
+      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Schedule item */
+    .schedule-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1.5rem;
+      padding: 1.4rem 1.8rem;
+      margin-bottom: 0.8rem;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      transition: all 0.5s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .schedule-item::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      border-radius: 4px 0 0 4px;
+      background: var(--muted);
+      transition: background 0.5s;
+    }
+
+    .schedule-item.done {
+      opacity: var(--done-opacity);
+      transform: scale(0.98);
+    }
+
+    .schedule-item.current {
+      background: var(--current-bg);
+      border-color: var(--current-border);
+      box-shadow: 0 0 30px rgba(124,58,237,0.25), inset 0 0 30px rgba(124,58,237,0.05);
+      opacity: 1;
+      transform: scale(1.01);
+    }
+    .schedule-item.current::before {
+      background: var(--accent-grad);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .schedule-item.upcoming {
+      opacity: 0.75;
+      background: rgba(255,255,255,0.02);
+      border-color: var(--border);
+    }
+    .schedule-item.upcoming::before {
+      background: var(--border);
+    }
+
+    .item-number {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      min-width: 28px;
+      padding-top: 0.2rem;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .schedule-item.current .item-number {
+      color: var(--accent);
+    }
+
+    .item-body { flex: 1; }
+
+    .item-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 0.3rem;
+      transition: color 0.5s;
+    }
+    .schedule-item.current .item-title {
+      font-size: 1.6rem;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .item-detail {
+      font-size: 0.9rem;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+    .schedule-item.current .item-detail {
+      color: var(--text2);
+      font-size: 1rem;
+    }
+
+    .item-badge {
+      font-size: 0.7rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      border: 1px solid;
+      white-space: nowrap;
+      flex-shrink: 0;
+      align-self: flex-start;
+      margin-top: 0.15rem;
+    }
+
+    .item-duration {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+
+    /* Category colors */
+    .cat-worship { border-color: #f59e0b; color: #f59e0b; background: rgba(245,158,11,0.1); }
+    .cat-prayer  { border-color: #10b981; color: #10b981; background: rgba(16,185,129,0.1); }
+    .cat-sermon  { border-color: #3b82f6; color: #3b82f6; background: rgba(59,130,246,0.1); }
+    .cat-hymn    { border-color: #ec4899; color: #ec4899; background: rgba(236,72,153,0.1); }
+    .cat-offering{ border-color: #f97316; color: #f97316; background: rgba(249,115,22,0.1); }
+    .cat-default { border-color: var(--text3); color: var(--text2); background: rgba(100,116,139,0.1); }
+
+    /* Current item pulse animation */
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 30px rgba(124,58,237,0.25), inset 0 0 30px rgba(124,58,237,0.05); }
+      50% { box-shadow: 0 0 50px rgba(124,58,237,0.4), inset 0 0 40px rgba(124,58,237,0.1); }
+    }
+    .schedule-item.current {
+      animation: pulse-border 3s ease-in-out infinite;
+    }
+
+    /* Empty state */
+    #empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 1rem;
+      opacity: 0.4;
+    }
+    #empty-state .icon { font-size: 5rem; }
+    #empty-state p { font-size: 1.1rem; color: var(--muted); }
+
+    /* Footer status */
+    #footer {
+      padding: 0.6rem 2rem;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    #footer .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      display: inline-block;
+      margin-right: 6px;
+      box-shadow: 0 0 6px #4ade80;
+    }
+
+    /* Scroll indicator */
+    #scroll-hint {
+      position: fixed;
+      bottom: 3rem;
+      right: 2rem;
+      background: var(--accent);
+      color: white;
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #scroll-hint.show { opacity: 1; }
+
+    /* Divider line between sections */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 0.5rem 0 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div class="title">⛪ 주일 예배 순서</div>
+  <div class="clock" id="clock">--:--:--</div>
+  <div class="date-info" id="date-info">불러오는 중...</div>
+</div>
+
+<div id="progress-bar-wrap">
+  <div id="progress-bar"></div>
+</div>
+
+<div id="scroll-container">
+  <div id="schedule-list">
+    <div id="empty-state">
+      <div class="icon">📋</div>
+      <p>관리자 페이지에서 예배 순서를 등록해주세요</p>
+      <p style="font-size:0.8rem">Admin → 순서 입력 또는 이미지 업로드</p>
+    </div>
+  </div>
+</div>
+
+<div id="footer">
+  <div><span class="status-dot" id="conn-dot"></span><span id="conn-status">연결 중...</span></div>
+  <div id="item-counter">순서 없음</div>
+  <div style="display:flex;align-items:center;gap:1rem;">
+    <span id="auto-status">자동 스크롤: 꺼짐</span>
+    <a href="/settings" style="font-size:0.7rem;color:var(--muted);text-decoration:none;opacity:0.5;" title="설정">⚙</a>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // Apply display settings from localStorage
+  (function applySettings() {
+    try {
+      const s = JSON.parse(localStorage.getItem('service-scroller-settings') || '{}');
+      if (s.fontSize) document.documentElement.style.setProperty('--base-font', s.fontSize + 'px');
+      if (s.smoothScroll === false) {
+        document.querySelectorAll('#schedule-list').forEach(el => el.style.transition = 'none');
+      }
+    } catch(e) {}
+  })();
+  const socket = io();
+  let state = { items: [], currentIndex: 0, autoScroll: false, scrollSpeed: 3 };
+  let autoScrollInterval = null;
+
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    const days = ['일','월','화','수','목','금','토'];
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('ko-KR', { hour12: false });
+    document.getElementById('date-info').textContent =
+      `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Socket connection
+  socket.on('connect', () => {
+    document.getElementById('conn-dot').style.background = '#4ade80';
+    document.getElementById('conn-dot').style.boxShadow = '0 0 6px #4ade80';
+    document.getElementById('conn-status').textContent = '연결됨';
+  });
+  socket.on('disconnect', () => {
+    document.getElementById('conn-dot').style.background = '#f87171';
+    document.getElementById('conn-dot').style.boxShadow = '0 0 6px #f87171';
+    document.getElementById('conn-status').textContent = '연결 끊김';
+  });
+
+  socket.on('schedule:update', (newState) => {
+    state = newState;
+    renderSchedule();
+    updateAutoScroll();
+  });
+
+  function getCategoryLabel(cat) {
+    const map = {
+      worship: '경배찬양', prayer: '기도', sermon: '설교',
+      hymn: '찬송', offering: '헌금', announcement: '광고',
+      default: '순서'
+    };
+    return map[cat] || cat;
+  }
+
+  function renderSchedule() {
+    const list = document.getElementById('schedule-list');
+    const empty = document.getElementById('empty-state');
+
+    if (!state.items || state.items.length === 0) {
+      list.innerHTML = '';
+      const emptyEl = document.createElement('div');
+      emptyEl.id = 'empty-state';
+      emptyEl.innerHTML = `
+        <div class="icon">📋</div>
+        <p>관리자 페이지에서 예배 순서를 등록해주세요</p>
+        <p style="font-size:0.8rem">Admin → 순서 입력 또는 이미지 업로드</p>
+      `;
+      emptyEl.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:1rem;opacity:0.4;';
+      list.appendChild(emptyEl);
+      document.getElementById('item-counter').textContent = '순서 없음';
+      document.getElementById('progress-bar').style.width = '0%';
+      return;
+    }
+
+    // Progress
+    const progress = state.items.length > 1
+      ? (state.currentIndex / (state.items.length - 1)) * 100 : 100;
+    document.getElementById('progress-bar').style.width = progress + '%';
+    document.getElementById('item-counter').textContent =
+      `${state.currentIndex + 1} / ${state.items.length}`;
+    document.getElementById('auto-status').textContent =
+      `자동 스크롤: ${state.autoScroll ? '켜짐' : '꺼짐'}`;
+
+    list.innerHTML = '';
+    state.items.forEach((item, idx) => {
+      let statusClass = '';
+      if (idx < state.currentIndex) statusClass = 'done';
+      else if (idx === state.currentIndex) statusClass = 'current';
+      else statusClass = 'upcoming';
+
+      const catClass = `cat-${item.category || 'default'}`;
+      const catLabel = getCategoryLabel(item.category);
+
+      const el = document.createElement('div');
+      el.className = `schedule-item ${statusClass}`;
+      el.dataset.index = idx;
+      el.innerHTML = `
+        <div class="item-number">${item.order || idx + 1}</div>
+        <div class="item-body">
+          <div class="item-title">${escHtml(item.title)}</div>
+          ${item.detail ? `<div class="item-detail">${escHtml(item.detail)}</div>` : ''}
+          ${item.duration ? `<div class="item-duration">⏱ ${escHtml(item.duration)}</div>` : ''}
+        </div>
+        <span class="item-badge ${catClass}">${catLabel}</span>
+      `;
+      list.appendChild(el);
+
+      // Add divider after every 3 items for visual grouping
+    });
+
+    // Scroll to current item
+    scrollToCurrent();
+  }
+
+  function scrollToCurrent() {
+    const container = document.getElementById('scroll-container');
+    const list = document.getElementById('schedule-list');
+    const currentEl = list.querySelector('.current');
+    if (!currentEl) return;
+
+    const containerHeight = container.clientHeight;
+    const itemTop = currentEl.offsetTop;
+    const itemHeight = currentEl.offsetHeight;
+
+    // Center the current item vertically
+    const targetScrollY = itemTop - (containerHeight / 2) + (itemHeight / 2);
+    const clampedY = Math.max(0, targetScrollY);
+
+    list.style.transform = `translateY(${-clampedY}px)`;
+  }
+
+  function updateAutoScroll() {
+    clearInterval(autoScrollInterval);
+    if (state.autoScroll && state.items.length > 0) {
+      const intervalMs = Math.max(1000, (10 - state.scrollSpeed) * 2000);
+      autoScrollInterval = setInterval(() => {
+        if (state.currentIndex < state.items.length - 1) {
+          socket.emit('control:next');
+        } else {
+          clearInterval(autoScrollInterval);
+        }
+      }, intervalMs);
+    }
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Initial load from HTTP (in case socket hasn't fired yet)
+  fetch('/api/state').then(r => r.json()).then(s => {
+    state = s;
+    renderSchedule();
+    updateAutoScroll();
+  });
+
+</script>
+</body>
+</html>

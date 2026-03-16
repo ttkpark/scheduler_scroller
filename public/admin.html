@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>예배 순서 관리자</title>
+  <link rel="stylesheet" href="/themes.css">
+  <script src="/theme.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .header {
+      padding: 1rem 2rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .header-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header-links { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .header-links a {
+      font-size: 0.75rem;
+      color: var(--text2);
+      text-decoration: none;
+      padding: 4px 12px;
+      border: 1px solid var(--border2);
+      border-radius: 999px;
+      transition: all 0.2s;
+    }
+    .header-links a:hover { border-color: var(--accent); color: var(--text); }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+
+    .tabs {
+      display: flex;
+      gap: 0.3rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 2rem;
+    }
+    .tab {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--text2);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .tab.active {
+      background: var(--accent-grad);
+      color: white;
+      box-shadow: 0 2px 10px rgba(124,58,237,0.3);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 1rem;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .card-header .card-title { margin-bottom: 0; }
+
+    /* ── Drop zone ── */
+    #drop-zone {
+      border: 2px dashed var(--border2);
+      border-radius: 12px;
+      padding: 2.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: rgba(124,58,237,0.03);
+    }
+    #drop-zone:hover, #drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(124,58,237,0.08);
+    }
+    #drop-zone .icon { font-size: 3rem; margin-bottom: 0.8rem; }
+    #drop-zone .text { color: var(--text2); font-size: 0.9rem; }
+    #drop-zone .hint { font-size: 0.75rem; color: var(--text3); margin-top: 0.4rem; }
+    #file-input { display: none; }
+
+    /* ── Canvas crop UI ── */
+    #crop-section { display: none; margin-top: 1rem; }
+    #crop-instructions {
+      font-size: 0.8rem;
+      color: var(--text2);
+      margin-bottom: 0.8rem;
+      padding: 0.6rem 0.9rem;
+      background: rgba(124,58,237,0.1);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      line-height: 1.6;
+    }
+    #canvas-wrap {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      cursor: crosshair;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border2);
+    }
+    #img-canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    #crop-overlay {
+      position: absolute;
+      border: 2px solid #7c3aed;
+      background: rgba(124,58,237,0.15);
+      pointer-events: none;
+      display: none;
+    }
+    .crop-btn-row {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 0.8rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    #crop-hint {
+      font-size: 0.75rem;
+      color: var(--text3);
+    }
+
+    /* ── OCR result ── */
+    #ocr-result-wrap { display: none; margin-top: 1rem; }
+    #ocr-text {
+      width: 100%;
+      min-height: 120px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 0.8rem;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      resize: vertical;
+      font-family: 'Malgun Gothic', monospace;
+    }
+    #ocr-text::placeholder { color: var(--text3); }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 0.7rem 1.4rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--accent-grad); color: white; }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+    .btn-secondary { background: var(--border); color: var(--text); border: 1px solid var(--border2); }
+    .btn-secondary:hover:not(:disabled) { background: var(--border2); }
+    .btn-danger { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid #ef4444; }
+    .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.75rem; }
+    .btn-icon { padding: 0.4rem 0.6rem; }
+
+    /* ── Paste area ── */
+    #paste-area {
+      width: 100%;
+      min-height: 150px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 0.8rem;
+      font-size: 0.85rem;
+      line-height: 1.8;
+      resize: vertical;
+      font-family: 'Malgun Gothic', monospace;
+    }
+    #paste-area::placeholder { color: var(--text3); }
+
+    /* ── Editor ── */
+    #schedule-editor { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .editor-item {
+      display: grid;
+      grid-template-columns: 28px 1fr 130px 90px 36px;
+      grid-template-rows: auto auto;
+      gap: 0.4rem 0.5rem;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.6rem 0.8rem;
+      transition: border-color 0.2s;
+    }
+    .editor-item:hover { border-color: var(--border2); }
+    .editor-item.drag-over { border-color: var(--accent); background: rgba(124,58,237,0.1); }
+    .editor-item.drag-source { opacity: 0.4; }
+
+    .drag-handle {
+      cursor: grab; color: var(--text3); font-size: 1rem;
+      text-align: center; user-select: none; grid-row: 1/3;
+    }
+    .drag-handle:active { cursor: grabbing; }
+
+    .input-field {
+      background: transparent;
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      padding: 0.4rem 0.6rem;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus { border-color: var(--accent); }
+    .input-field::placeholder { color: var(--text3); }
+    select.input-field { cursor: pointer; }
+
+    .editor-toolbar {
+      display: flex; gap: 0.6rem; align-items: center;
+      flex-wrap: wrap; margin-bottom: 1rem;
+    }
+
+    /* ── Status messages ── */
+    .status-msg {
+      padding: 0.7rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+      display: none;
+      line-height: 1.5;
+    }
+    .status-msg.success { background: rgba(74,222,128,0.1); border: 1px solid #4ade80; color: #4ade80; }
+    .status-msg.error   { background: rgba(248,113,113,0.1); border: 1px solid #f87171; color: #f87171; }
+    .status-msg.loading { background: rgba(124,58,237,0.1); border: 1px solid var(--accent); color: #a78bfa; }
+
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(167,139,250,0.3);
+      border-top-color: #a78bfa;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Templates ── */
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.6rem;
+    }
+    .template-btn {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 0.8rem;
+      text-align: left;
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .template-btn:hover { border-color: var(--accent); background: rgba(124,58,237,0.08); }
+    .template-btn .t-title { font-weight: 700; margin-bottom: 0.3rem; font-size: 0.85rem; }
+    .template-btn .t-desc { color: var(--text3); font-size: 0.75rem; }
+
+    .live-dot {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; background: #4ade80;
+      box-shadow: 0 0 6px #4ade80; margin-right: 5px;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    @media (max-width: 600px) {
+      .container { padding: 1rem; }
+      .editor-item {
+        grid-template-columns: 24px 1fr 36px;
+        grid-template-rows: auto auto auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">⚙️ 관리자 패널</div>
+  <div class="header-links">
+    <a href="/display" target="_blank">📺 디스플레이</a>
+    <a href="/controller" target="_blank">🎮 컨트롤러</a>
+    <a href="/settings">🎨 설정</a>
+    <a href="/">🏠 홈</a>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="tabs">
+    <button class="tab active" id="tab-btn-upload" onclick="switchTab('upload')">📷 이미지 업로드</button>
+    <button class="tab" id="tab-btn-editor" onclick="switchTab('editor')">✏️ 순서 편집</button>
+    <button class="tab" id="tab-btn-templates" onclick="switchTab('templates')">📋 템플릿</button>
+  </div>
+
+  <!-- ══════════ TAB: IMAGE UPLOAD ══════════ -->
+  <div class="tab-panel active" id="tab-upload">
+    <div class="card">
+      <div class="card-title">예배 순서지 이미지 업로드</div>
+
+      <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="icon">🖼️</div>
+        <div class="text">이미지를 드래그하거나 클릭하여 업로드</div>
+        <div class="hint">JPG · PNG · WEBP · 최대 20MB</div>
+      </div>
+      <input type="file" id="file-input" accept="image/*" onchange="onFileSelect(this)">
+    </div>
+
+    <!-- Crop section -->
+    <div class="card" id="crop-section">
+      <div class="card-title">순서 영역 선택</div>
+      <div id="crop-instructions">
+        📌 <strong>예배 순서 목록이 있는 영역만 드래그해서 선택</strong>하면 인식 정확도가 크게 높아집니다.<br>
+        선택하지 않으면 전체 이미지를 분석합니다.
+      </div>
+      <div id="canvas-wrap">
+        <canvas id="img-canvas"></canvas>
+        <div id="crop-overlay"></div>
+      </div>
+      <div class="crop-btn-row">
+        <button class="btn btn-primary" id="btn-ocr" onclick="runOCR()">
+          🔍 선택 영역 OCR 인식
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="clearCrop()">선택 초기화</button>
+        <span id="crop-hint" class="btn-sm" style="color:var(--text3);">영역을 드래그하세요</span>
+      </div>
+    </div>
+
+    <!-- OCR result -->
+    <div class="card" id="ocr-result-wrap">
+      <div class="card-title">인식된 텍스트</div>
+      <p style="font-size:0.8rem; color:var(--text2); margin-bottom:0.8rem;">
+        인식 결과를 확인·수정한 후 <strong style="color:#a78bfa">자동 파싱</strong> 버튼을 눌러주세요.<br>
+        <span style="font-size:0.75rem;color:var(--text3);">※ 두 줄로 된 항목(순서명 / 담당자)을 자동으로 분리합니다.</span>
+      </p>
+      <textarea id="ocr-text" placeholder="OCR 결과가 여기에 표시됩니다..."></textarea>
+      <div style="margin-top:0.8rem; display:flex; gap:0.6rem; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="parseOCRText()">📝 순서 자동 파싱 → 편집 탭으로</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearUpload()">🗑 처음부터</button>
+      </div>
+    </div>
+
+    <div id="upload-status" class="status-msg"></div>
+  </div>
+
+  <!-- ══════════ TAB: EDITOR ══════════ -->
+  <div class="tab-panel" id="tab-editor">
+    <div class="card">
+      <div class="card-title">텍스트로 순서 직접 입력</div>
+      <p style="font-size:0.8rem; color:var(--text2); margin-bottom:0.8rem;">
+        한 줄에 한 순서씩 입력하세요. <code style="color:#a78bfa">순서명 | 세부내용</code>처럼 <strong>|</strong>(파이프, Shift+\) 또는 탭으로 구분하면 항목/담당자로 나뉩니다.
+      </p>
+      <textarea id="paste-area" placeholder="예시 (항목 | 담당자 형식):
+1. 예배 부름
+2. 찬양 | (회중) 찬송가 1장
+3. 대표기도 | 장로님
+4. 성경봉독 | 요한복음 3장 16절
+5. 설교 | 목사님
+6. 헌금
+7. 광고
+8. 축도"></textarea>
+      <div style="margin-top:0.6rem;">
+        <button class="btn btn-primary" onclick="parseTextArea()">📥 순서 목록에 추가</button>
+      </div>
+      <div id="parse-status" class="status-msg"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">예배 순서 목록</div>
+        <span style="font-size:0.8rem; color:var(--text2);"><span class="live-dot"></span>실시간 연동</span>
+      </div>
+      <div class="editor-toolbar">
+        <button class="btn btn-secondary btn-sm" onclick="addItem()">+ 항목 추가</button>
+        <button class="btn btn-primary btn-sm" id="btn-save" onclick="saveSchedule()">💾 저장 &amp; 적용</button>
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑 전체 삭제</button>
+        <span id="item-count" style="font-size:0.75rem; color:var(--text3); margin-left:auto;"></span>
+      </div>
+      <div id="schedule-editor"></div>
+      <div id="save-status" class="status-msg"></div>
+    </div>
+  </div>
+
+  <!-- ══════════ TAB: TEMPLATES ══════════ -->
+  <div class="tab-panel" id="tab-templates">
+    <div class="card">
+      <div class="card-title">예배 순서 템플릿</div>
+      <p style="font-size:0.8rem; color:var(--text2); margin-bottom:1rem;">
+        자주 사용하는 예배 형식을 선택하면 편집 탭에 자동으로 입력됩니다.
+      </p>
+      <div class="template-grid" id="template-grid"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let editorItems = [];
+let uploadedImageFile = null;  // basename only (e.g. "abc.jpg")
+let cropRect = null;           // {x, y, w, h} in original image pixels
+let dragSrcIdx = null;
+let isSaving = false;
+let imgNatW = 0, imgNatH = 0; // original image size
+
+// ── Socket ───────────────────────────────────────────────────
+socket.on('schedule:update', (state) => {
+  if (state.items && state.items.length > 0 && editorItems.length === 0) {
+    editorItems = state.items.map(i => ({ ...i }));
+    renderEditor();
+  }
+});
+fetch('/api/state').then(r => r.json()).then(state => {
+  if (state.items && state.items.length > 0 && editorItems.length === 0) {
+    editorItems = state.items.map(i => ({ ...i }));
+    renderEditor();
+  }
+});
+
+// ── Tabs ─────────────────────────────────────────────────────
+function switchTab(name) {
+  ['upload','editor','templates'].forEach(n => {
+    document.getElementById('tab-btn-'+n).classList.toggle('active', n===name);
+    document.getElementById('tab-'+n).classList.toggle('active', n===name);
+  });
+}
+
+// ── Drop zone ─────────────────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+function onFileSelect(input) { if (input.files[0]) handleFile(input.files[0]); }
+
+async function handleFile(file) {
+  if (!file.type.startsWith('image/')) {
+    showStatus('upload-status', '이미지 파일만 업로드 가능합니다.', 'error'); return;
+  }
+  showStatus('upload-status', '<span class="spinner"></span> 업로드 중...', 'loading');
+  const formData = new FormData();
+  formData.append('image', file);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    uploadedImageFile = data.imageUrl; // e.g. /uploads/xxx.jpg
+    imgNatW = data.width;
+    imgNatH = data.height;
+
+    setupCanvas(data.imageUrl, data.width, data.height);
+    document.getElementById('crop-section').style.display = 'block';
+    document.getElementById('ocr-result-wrap').style.display = 'none';
+    cropRect = null;
+    showStatus('upload-status', '✅ 업로드 완료! 순서 목록 영역을 드래그로 선택한 후 [OCR 인식] 버튼을 눌러주세요.', 'success');
+  } catch(e) {
+    showStatus('upload-status', '❌ 업로드 실패: ' + e.message, 'error');
+  }
+}
+
+// ── Canvas crop UI ────────────────────────────────────────────
+let isDrawing = false, startX = 0, startY = 0;
+
+function setupCanvas(imageUrl, natW, natH) {
+  const wrap = document.getElementById('canvas-wrap');
+  const canvas = document.getElementById('img-canvas');
+  const overlay = document.getElementById('crop-overlay');
+  const maxW = Math.min(wrap.parentElement.clientWidth - 48, 800);
+  const scale = maxW / natW;
+  const dispW = Math.round(natW * scale);
+  const dispH = Math.round(natH * scale);
+
+  canvas.width = dispW;
+  canvas.height = dispH;
+  canvas.style.width = dispW + 'px';
+  canvas.style.height = dispH + 'px';
+
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.onload = () => ctx.drawImage(img, 0, 0, dispW, dispH);
+  img.src = imageUrl;
+
+  // Store scale for coordinate mapping
+  canvas._scale = scale;
+
+  // Mouse events
+  canvas.onmousedown = (e) => {
+    isDrawing = true;
+    const r = canvas.getBoundingClientRect();
+    startX = e.clientX - r.left;
+    startY = e.clientY - r.top;
+    overlay.style.display = 'none';
+  };
+  canvas.onmousemove = (e) => {
+    if (!isDrawing) return;
+    const r = canvas.getBoundingClientRect();
+    const cx = e.clientX - r.left;
+    const cy = e.clientY - r.top;
+    const x = Math.min(startX, cx), y = Math.min(startY, cy);
+    const w = Math.abs(cx - startX), h = Math.abs(cy - startY);
+    overlay.style.display = 'block';
+    overlay.style.left = x + 'px'; overlay.style.top = y + 'px';
+    overlay.style.width = w + 'px'; overlay.style.height = h + 'px';
+  };
+  canvas.onmouseup = (e) => {
+    if (!isDrawing) return;
+    isDrawing = false;
+    const r = canvas.getBoundingClientRect();
+    const cx = e.clientX - r.left;
+    const cy = e.clientY - r.top;
+    const sc = canvas._scale;
+    const x = Math.min(startX, cx) / sc;
+    const y = Math.min(startY, cy) / sc;
+    const w = Math.abs(cx - startX) / sc;
+    const h = Math.abs(cy - startY) / sc;
+    if (w > 20 && h > 20) {
+      cropRect = { x, y, w, h };
+      document.getElementById('crop-hint').textContent =
+        `선택됨: ${Math.round(w)}×${Math.round(h)}px`;
+    }
+  };
+
+  // Touch support
+  canvas.ontouchstart = (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const r = canvas.getBoundingClientRect();
+    isDrawing = true;
+    startX = t.clientX - r.left;
+    startY = t.clientY - r.top;
+  };
+  canvas.ontouchmove = (e) => {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const t = e.touches[0];
+    const r = canvas.getBoundingClientRect();
+    const cx = t.clientX - r.left, cy = t.clientY - r.top;
+    const x = Math.min(startX, cx), y = Math.min(startY, cy);
+    const w = Math.abs(cx - startX), h = Math.abs(cy - startY);
+    overlay.style.display = 'block';
+    overlay.style.left = x+'px'; overlay.style.top = y+'px';
+    overlay.style.width = w+'px'; overlay.style.height = h+'px';
+  };
+  canvas.ontouchend = (e) => {
+    e.preventDefault();
+    if (!isDrawing) return;
+    isDrawing = false;
+    const t = e.changedTouches[0];
+    const r = canvas.getBoundingClientRect();
+    const cx = t.clientX - r.left, cy = t.clientY - r.top;
+    const sc = canvas._scale;
+    const x = Math.min(startX, cx) / sc, y = Math.min(startY, cy) / sc;
+    const w = Math.abs(cx - startX) / sc, h = Math.abs(cy - startY) / sc;
+    if (w > 20 && h > 20) {
+      cropRect = { x, y, w, h };
+      document.getElementById('crop-hint').textContent =
+        `선택됨: ${Math.round(w)}×${Math.round(h)}px`;
+    }
+  };
+}
+
+function clearCrop() {
+  cropRect = null;
+  document.getElementById('crop-overlay').style.display = 'none';
+  document.getElementById('crop-hint').textContent = '영역을 드래그하세요';
+}
+
+function clearUpload() {
+  uploadedImageFile = null; cropRect = null;
+  document.getElementById('crop-section').style.display = 'none';
+  document.getElementById('ocr-result-wrap').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  document.getElementById('upload-status').style.display = 'none';
+  document.getElementById('crop-hint').textContent = '영역을 드래그하세요';
+}
+
+async function runOCR() {
+  if (!uploadedImageFile) { showStatus('upload-status','이미지를 먼저 업로드하세요.','error'); return; }
+  const btn = document.getElementById('btn-ocr');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> OCR 인식 중...';
+  showStatus('upload-status', '<span class="spinner"></span> OCR 처리 중입니다... (처음 실행 시 1~2분 소요)', 'loading');
+
+  try {
+    const body = {
+      imageFile: uploadedImageFile,
+      crop: cropRect || null
+    };
+    const res = await fetch('/api/ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    document.getElementById('ocr-text').value = data.ocrText || '';
+    document.getElementById('ocr-result-wrap').style.display = 'block';
+    const engineLabels = { 'gpt-4o': 'GPT-4o', 'claude': 'Claude', 'tesseract': 'Tesseract' };
+    const engineMsg = data.engine ? ` (${engineLabels[data.engine] || data.engine})` : '';
+    showStatus('upload-status', '✅ OCR 완료!' + engineMsg + ' 인식된 텍스트를 확인하고 [자동 파싱] 버튼을 눌러주세요.', 'success');
+  } catch(e) {
+    showStatus('upload-status', '❌ OCR 실패: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔍 선택 영역 OCR 인식';
+  }
+}
+
+// ── Parse OCR text ────────────────────────────────────────────
+function parseOCRText() {
+  const text = document.getElementById('ocr-text').value;
+  if (!text.trim()) { showStatus('upload-status','텍스트를 입력해주세요.','error'); return; }
+  const items = parseScheduleText(text);
+  if (!items.length) { showStatus('upload-status','파싱된 순서가 없습니다. 텍스트를 확인해주세요.','error'); return; }
+  editorItems = items;
+  renderEditor();
+  switchTab('editor');
+  showStatus('save-status', `✅ ${items.length}개 순서가 로드되었습니다. 확인 후 [저장 & 적용]을 눌러주세요.`, 'success');
+}
+
+function parseTextArea() {
+  const text = document.getElementById('paste-area').value;
+  if (!text.trim()) { showStatus('parse-status','텍스트를 입력해주세요.','error'); return; }
+  const items = parseScheduleText(text);
+  if (!items.length) { showStatus('parse-status','인식된 순서가 없습니다.','error'); return; }
+  editorItems = [...editorItems, ...items];
+  reorderItems();
+  renderEditor();
+  document.getElementById('paste-area').value = '';
+  showStatus('parse-status', `✅ ${items.length}개 순서가 추가되었습니다.`, 'success');
+  setTimeout(() => document.getElementById('parse-status').style.display='none', 4000);
+}
+
+// 구분자: Tab 또는 | (파이프). 웹/앱에서 | 가 입력하기 쉬움 (Shift+\)
+const COLUMN_SEP = /\t|\|/;
+
+/**
+ * Smart parser: handles
+ *  - "찬양 | 홍길동" / "찬양\t홍길동"  (항목 | 담당자 — Tab 또는 | 구분)
+ *  - "찬양\n다함께"        (two-line format from OCR)
+ *  - "* 찬양"              (bullet prefix)
+ *  - Plain lines
+ */
+function parseScheduleText(raw) {
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const items = [];
+
+  // Detect if it looks like a two-column table (Tab or | separated)
+  const sepLines = lines.filter(l => COLUMN_SEP.test(l)).length;
+  const isTabTable = sepLines > lines.length * 0.3;
+
+  let i = 0;
+  while (i < lines.length) {
+    let line = lines[i];
+
+    // Skip header-like lines (all caps / very short noise)
+    if (/^[A-Z\s\d:\.]+$/.test(line) && line.length < 5) { i++; continue; }
+    // Skip obvious non-schedule noise
+    if (/^(AM|PM|아멘|amen|\/\/|http|www|\*\*)/i.test(line)) { i++; continue; }
+
+    // Remove bullet / number prefix
+    line = line
+      .replace(/^[\*★●•◆◇▶▷▸]+\s*/, '')
+      .replace(/^[\d①②③④⑤⑥⑦⑧⑨⑩]+[.)、．]\s*/, '')
+      .trim();
+
+    if (!line) { i++; continue; }
+
+    let title = '', detail = '';
+
+    if (COLUMN_SEP.test(line)) {
+      // Tab or | separated: 항목 | 담당자
+      const parts = line.split(COLUMN_SEP);
+      title = parts[0].trim();
+      detail = parts.slice(1).join(' ').trim();
+    } else {
+      // Check if next line looks like a detail/person name (not a new item)
+      const nextLine = lines[i + 1];
+      if (nextLine && !nextLine.match(/^[\d①-⑩*★●•]/)) {
+        const nextClean = nextLine
+          .replace(/^[\*★●•◆◇▶▷▸]+\s*/, '')
+          .replace(/^[\d①②③④⑤⑥⑦⑧⑨⑩]+[.)、．]\s*/, '')
+          .trim();
+        // If next line is short and doesn't look like an independent item
+        if (nextClean.length > 0 && nextClean.length <= 20
+            && !detectIsTitle(nextClean)
+            && !nextLine.match(/^[\d①-⑩]/)) {
+          title = line;
+          detail = nextClean;
+          i += 2;
+          goto_push(title, detail);
+          continue;
+        }
+      }
+      title = line;
+      detail = '';
+    }
+
+    if (title) goto_push(title, detail);
+    i++;
+  }
+
+  function goto_push(title, detail) {
+    if (title.length < 1 || title.length > 40) return;
+    const category = detectCategory(title + ' ' + detail);
+    items.push({
+      id: generateId(),
+      order: items.length + 1,
+      title,
+      detail,
+      category,
+      duration: ''
+    });
+  }
+
+  return items;
+}
+
+function detectIsTitle(text) {
+  return /찬양|기도|설교|헌금|광고|찬송|봉헌|말씀|봉독|부름|묵도|축도|경배|광고|인사/.test(text);
+}
+
+function detectCategory(text) {
+  const t = text.toLowerCase();
+  if (/찬양|경배|worship|praise/.test(t)) return 'worship';
+  if (/기도|prayer|묵도|축도|부름/.test(t)) return 'prayer';
+  if (/설교|sermon|말씀|message/.test(t)) return 'sermon';
+  if (/찬송|hymn|응답/.test(t)) return 'hymn';
+  if (/헌금|봉헌|offering/.test(t)) return 'offering';
+  if (/광고|announcement|안내/.test(t)) return 'announcement';
+  return 'default';
+}
+
+function generateId() {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// ── Editor ────────────────────────────────────────────────────
+const CATS = [
+  {value:'default',label:'기본'},{value:'worship',label:'경배찬양'},
+  {value:'prayer',label:'기도'},{value:'sermon',label:'설교'},
+  {value:'hymn',label:'찬송'},{value:'offering',label:'헌금'},
+  {value:'announcement',label:'광고'},
+];
+
+function addItem() {
+  editorItems.push({ id:generateId(), order:editorItems.length+1, title:'', detail:'', category:'default', duration:'' });
+  renderEditor();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#schedule-editor .title-input');
+    if (inputs.length) inputs[inputs.length-1].focus();
+  }, 30);
+}
+
+function removeItem(idx) {
+  editorItems.splice(idx, 1); reorderItems(); renderEditor();
+}
+function reorderItems() { editorItems.forEach((it,i) => it.order=i+1); }
+
+function renderEditor() {
+  const container = document.getElementById('schedule-editor');
+  document.getElementById('item-count').textContent = editorItems.length ? `${editorItems.length}개 항목` : '';
+
+  if (!editorItems.length) {
+    container.innerHTML = `<div style="text-align:center;color:var(--text3);padding:2rem;font-size:0.85rem;">
+      위에서 텍스트를 입력하거나, 이미지 업로드 후 파싱하면 목록이 생성됩니다.<br>
+      또는 "항목 추가" 버튼으로 직접 입력하세요.
+    </div>`;
+    return;
+  }
+
+  const existing = Array.from(container.querySelectorAll('.editor-item'));
+  while (existing.length > editorItems.length) existing.pop().remove();
+
+  editorItems.forEach((item, idx) => {
+    let row = existing[idx];
+    if (!row) {
+      row = buildEditorRow(idx, item);
+      container.appendChild(row);
+    } else {
+      row.dataset.idx = idx;
+      const titleInput = row.querySelector('.title-input');
+      const detailInput = row.querySelector('.detail-input');
+      const catSelect = row.querySelector('.cat-select');
+      const durInput = row.querySelector('.dur-input');
+      const numLabel = row.querySelector('.item-num-label');
+      if (numLabel) numLabel.textContent = item.order;
+      if (catSelect) catSelect.value = item.category;
+      if (titleInput && document.activeElement!==titleInput) titleInput.value = item.title;
+      if (detailInput && document.activeElement!==detailInput) detailInput.value = item.detail;
+      if (durInput && document.activeElement!==durInput) durInput.value = item.duration;
+      bindRowEvents(row, idx);
+    }
+  });
+
+  // Drag-and-drop
+  container.querySelectorAll('.editor-item').forEach(el => {
+    el.ondragstart = e => { dragSrcIdx=parseInt(el.dataset.idx); e.dataTransfer.effectAllowed='move'; el.classList.add('drag-source'); };
+    el.ondragend = () => { el.classList.remove('drag-source'); container.querySelectorAll('.editor-item').forEach(x=>x.classList.remove('drag-over')); };
+    el.ondragover = e => { e.preventDefault(); container.querySelectorAll('.editor-item').forEach(x=>x.classList.remove('drag-over')); el.classList.add('drag-over'); };
+    el.ondragleave = () => el.classList.remove('drag-over');
+    el.ondrop = e => {
+      e.preventDefault(); el.classList.remove('drag-over');
+      const ti=parseInt(el.dataset.idx);
+      if (dragSrcIdx===null||dragSrcIdx===ti) return;
+      const [m]=editorItems.splice(dragSrcIdx,1); editorItems.splice(ti,0,m);
+      reorderItems(); renderEditor(); dragSrcIdx=null;
+    };
+  });
+}
+
+function buildEditorRow(idx, item) {
+  const row = document.createElement('div');
+  row.className = 'editor-item';
+  row.dataset.idx = idx;
+  row.draggable = true;
+  const catOptions = CATS.map(c=>`<option value="${c.value}"${item.category===c.value?' selected':''}>${c.label}</option>`).join('');
+  row.innerHTML = `
+    <span class="item-num-label drag-handle" style="grid-row:1/3;font-size:0.7rem;color:var(--text3);text-align:center;" title="드래그로 순서 변경">⠿</span>
+    <input class="input-field title-input" type="text" placeholder="순서 제목" value="${escAttr(item.title)}" data-field="title" style="grid-column:2;font-weight:600;">
+    <select class="input-field cat-select" data-field="category" style="grid-column:3;font-size:0.75rem;">${catOptions}</select>
+    <input class="input-field dur-input" type="text" placeholder="소요시간" value="${escAttr(item.duration)}" data-field="duration" style="grid-column:4;font-size:0.75rem;color:var(--text2);">
+    <button class="btn btn-danger btn-icon" data-del="${idx}" style="grid-column:5;" title="삭제">✕</button>
+    <input class="input-field detail-input" type="text" placeholder="세부 내용 (담당자 등)" value="${escAttr(item.detail)}" data-field="detail" style="grid-column:2/6;font-size:0.8rem;color:var(--text2);">
+  `;
+  bindRowEvents(row, idx);
+  return row;
+}
+
+function bindRowEvents(row, idx) {
+  const ti = row.querySelector('.title-input');
+  const di = row.querySelector('.detail-input');
+  const cs = row.querySelector('.cat-select');
+  const ri = row.querySelector('.dur-input');
+  const db = row.querySelector('[data-del]');
+  if (ti) ti.oninput = () => { if (editorItems[idx]) editorItems[idx].title=ti.value; };
+  if (di) di.oninput = () => { if (editorItems[idx]) editorItems[idx].detail=di.value; };
+  if (cs) cs.onchange= () => { if (editorItems[idx]) editorItems[idx].category=cs.value; };
+  if (ri) ri.oninput = () => { if (editorItems[idx]) editorItems[idx].duration=ri.value; };
+  if (db) db.onclick = () => removeItem(parseInt(row.dataset.idx));
+}
+
+async function saveSchedule() {
+  if (isSaving) return;
+  if (!editorItems.length) { showStatus('save-status','순서를 먼저 입력해주세요.','error'); return; }
+  isSaving = true;
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.innerHTML='<span class="spinner"></span> 저장 중...';
+  try {
+    const res = await fetch('/api/schedule', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ items: editorItems })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showStatus('save-status', `✅ ${editorItems.length}개 순서 저장 완료! 디스플레이·컨트롤러가 즉시 업데이트됩니다.`, 'success');
+    setTimeout(()=>document.getElementById('save-status').style.display='none', 6000);
+  } catch(e) {
+    showStatus('save-status','❌ 저장 실패: '+e.message,'error');
+  } finally {
+    isSaving=false; btn.disabled=false; btn.innerHTML='💾 저장 &amp; 적용';
+  }
+}
+
+function clearAll() {
+  if (editorItems.length && !confirm('모든 순서를 삭제하시겠습니까?')) return;
+  editorItems=[]; renderEditor();
+}
+
+// ── Templates ─────────────────────────────────────────────────
+const TEMPLATES = [
+  { title:'주일 예배 (기본)', desc:'9개 순서', items:[
+    {title:'예배 부름',detail:'',category:'prayer'},
+    {title:'찬양 및 경배',detail:'회중 찬송',category:'worship'},
+    {title:'대표 기도',detail:'',category:'prayer'},
+    {title:'성경 봉독',detail:'',category:'default'},
+    {title:'설교',detail:'목사님',category:'sermon'},
+    {title:'찬송',detail:'',category:'hymn'},
+    {title:'헌금',detail:'',category:'offering'},
+    {title:'광고',detail:'',category:'announcement'},
+    {title:'축도',detail:'',category:'prayer'},
+  ]},
+  { title:'주일 예배 (찬양 강조)', desc:'9개 순서', items:[
+    {title:'예배 부름',detail:'',category:'prayer'},
+    {title:'경배 찬양 1부',detail:'워십팀',category:'worship'},
+    {title:'대표 기도',detail:'',category:'prayer'},
+    {title:'경배 찬양 2부',detail:'회중 찬양',category:'worship'},
+    {title:'성경 봉독',detail:'',category:'default'},
+    {title:'설교',detail:'',category:'sermon'},
+    {title:'응답 찬양',detail:'',category:'hymn'},
+    {title:'헌금',detail:'',category:'offering'},
+    {title:'광고 및 축도',detail:'',category:'announcement'},
+  ]},
+  { title:'수요 예배', desc:'6개 순서', items:[
+    {title:'묵도',detail:'',category:'prayer'},
+    {title:'찬송',detail:'',category:'hymn'},
+    {title:'기도',detail:'',category:'prayer'},
+    {title:'말씀',detail:'',category:'sermon'},
+    {title:'기도',detail:'',category:'prayer'},
+    {title:'광고 및 축도',detail:'',category:'announcement'},
+  ]},
+];
+
+function renderTemplates() {
+  document.getElementById('template-grid').innerHTML = TEMPLATES.map((t,ti)=>`
+    <button class="template-btn" onclick="loadTemplate(${ti})">
+      <div class="t-title">📋 ${escHtml(t.title)}</div>
+      <div class="t-desc">${escHtml(t.desc)}</div>
+    </button>
+  `).join('');
+}
+function loadTemplate(idx) {
+  if (editorItems.length && !confirm('현재 편집 중인 내용이 사라집니다. 계속하시겠습니까?')) return;
+  const t = TEMPLATES[idx];
+  editorItems = t.items.map((it,i)=>({id:generateId(),order:i+1,...it,duration:''}));
+  renderEditor(); switchTab('editor');
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function showStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.innerHTML = msg; el.className='status-msg '+type; el.style.display='block';
+}
+function escHtml(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+function escAttr(s) { return s ? s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+
+renderTemplates();
+renderEditor();
+</script>
+</body>
+</html>

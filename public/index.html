@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sunday Service Scroller</title>
+  <link rel="stylesheet" href="/themes.css">
+  <script src="/theme.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      transition: background 0.3s, color 0.3s;
+    }
+    .logo {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: var(--text2);
+      font-size: 1rem;
+      margin-bottom: 3rem;
+      text-align: center;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+      max-width: 900px;
+      width: 100%;
+    }
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 16px;
+      padding: 2rem;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(124, 58, 237, 0.3);
+    }
+    .card-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .card-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .card-desc { font-size: 0.85rem; color: var(--text2); line-height: 1.6; }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-top: 0.8rem;
+      font-weight: 600;
+    }
+    .badge-display { background: #1a3a1a; color: #4ade80; border: 1px solid #4ade80; }
+    .badge-control { background: #3a1a1a; color: #f87171; border: 1px solid #f87171; }
+    .badge-admin { background: #1a2a3a; color: #60a5fa; border: 1px solid #60a5fa; }
+    .badge-settings { background: var(--surface); color: var(--text2); border: 1px solid var(--border2); }
+    .lan-box {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 2rem;
+      max-width: 500px;
+      width: 100%;
+    }
+    .lan-box .label { font-size: 0.8rem; color: var(--text2); margin-bottom: 0.35rem; }
+    .lan-box .url-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .lan-box .url { font-family: monospace; font-size: 0.95rem; color: var(--accent); word-break: break-all; }
+    .lan-box .btn-share {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .lan-box .btn-share:hover { opacity: 0.9; }
+    .lan-box .btn-share.copied { background: #22c55e; }
+  </style>
+</head>
+<body>
+  <div class="logo">⛪ Service Scroller</div>
+  <p class="subtitle">주일 예배 순서 자동 스크롤 시스템</p>
+  <div class="lan-box" id="lanBox" style="display:none">
+    <div class="label">같은 Wi‑Fi에서 접속 주소</div>
+    <div class="url-row">
+      <span class="url" id="lanUrl">—</span>
+      <button type="button" class="btn-share" id="btnShare">링크 공유</button>
+    </div>
+  </div>
+  <div class="cards">
+    <a class="card" href="/display">
+      <div class="card-icon">📺</div>
+      <div class="card-title">디스플레이</div>
+      <div class="card-desc">예배 순서가 자동으로 스크롤되는 메인 화면입니다. 별도 모니터나 프로젝터에 띄워두세요.</div>
+      <span class="badge badge-display">DISPLAY SCREEN</span>
+    </a>
+    <a class="card" href="/controller">
+      <div class="card-icon">🎮</div>
+      <div class="card-title">컨트롤러</div>
+      <div class="card-desc">스마트폰으로 다음/이전 버튼을 눌러 디스플레이 화면을 원격 제어합니다.</div>
+      <span class="badge badge-control">REMOTE CONTROL</span>
+    </a>
+    <a class="card" href="/admin">
+      <div class="card-icon">⚙️</div>
+      <div class="card-title">관리자</div>
+      <div class="card-desc">예배 순서지 이미지를 업로드하거나 직접 순서를 입력·편집합니다.</div>
+      <span class="badge badge-admin">ADMIN PANEL</span>
+    </a>
+    <a class="card" href="/settings">
+      <div class="card-icon">🎨</div>
+      <div class="card-title">설정</div>
+      <div class="card-desc">테마(다크/라이트/블랙/웜), 글자 크기, 디스플레이 옵션을 설정합니다.</div>
+      <span class="badge badge-settings">SETTINGS</span>
+    </a>
+  </div>
+  <script>
+    (function () {
+      var lanBox = document.getElementById('lanBox');
+      var lanUrlEl = document.getElementById('lanUrl');
+      var btnShare = document.getElementById('btnShare');
+      fetch('/api/server-info').then(function (r) { return r.json(); }).then(function (info) {
+        if (info.urls && info.urls.length > 0) {
+          var url = info.urls[0];
+          lanUrlEl.textContent = url;
+          lanBox.style.display = 'block';
+          btnShare.onclick = function () {
+            navigator.clipboard.writeText(url).then(function () {
+              btnShare.textContent = '복사됨';
+              btnShare.classList.add('copied');
+              setTimeout(function () {
+                btnShare.textContent = '링크 공유';
+                btnShare.classList.remove('copied');
+              }, 2000);
+            });
+          };
+        }
+      }).catch(function () {});
+    })();
+  </script>
+</body>
+</html>

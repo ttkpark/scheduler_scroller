@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>설정 - Service Scroller</title>
+  <link rel="stylesheet" href="/themes.css">
+  <script src="/theme.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+    .header {
+      padding: 1rem 2rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header-links { display: flex; gap: 0.8rem; }
+    .header-links a {
+      font-size: 0.75rem;
+      color: var(--text2);
+      text-decoration: none;
+      padding: 4px 12px;
+      border: 1px solid var(--border2);
+      border-radius: 999px;
+      transition: all 0.2s;
+    }
+    .header-links a:hover { border-color: var(--accent); color: var(--text); }
+
+    .container { max-width: 720px; margin: 0 auto; padding: 2rem; }
+
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 1rem;
+      margin-top: 2rem;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    /* Theme cards */
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+    .theme-card {
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .theme-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    .theme-card.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,58,237,0.3); }
+    .theme-preview {
+      height: 80px;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 6px;
+      position: relative;
+    }
+    .preview-bar { height: 8px; border-radius: 4px; }
+    .preview-item { height: 12px; border-radius: 4px; }
+    .preview-item.current { height: 16px; }
+    .theme-label {
+      padding: 0.5rem 0.8rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .theme-check { color: var(--accent); font-size: 1rem; display: none; }
+    .theme-card.active .theme-check { display: block; }
+
+    /* Dark preview */
+    .prev-dark { background: #07071a; }
+    .prev-dark .preview-bar { background: linear-gradient(90deg, #7c3aed, #2563eb); }
+    .prev-dark .preview-item { background: #1e1e4a; }
+    .prev-dark .preview-item.current { background: linear-gradient(90deg, #1a0a3a, #0a1a3a); border: 1px solid #7c3aed; }
+
+    /* Black preview */
+    .prev-black { background: #000000; }
+    .prev-black .preview-bar { background: linear-gradient(90deg, #9d5cf0, #3b82f6); }
+    .prev-black .preview-item { background: #1a1a1a; }
+    .prev-black .preview-item.current { background: linear-gradient(90deg, #0f0020, #00001a); border: 1px solid #9d5cf0; }
+
+    /* Light preview */
+    .prev-light { background: #f0f2f8; }
+    .prev-light .preview-bar { background: linear-gradient(90deg, #6d28d9, #1d4ed8); }
+    .prev-light .preview-item { background: #dde1ee; }
+    .prev-light .preview-item.current { background: linear-gradient(90deg, #ede9fe, #dbeafe); border: 1px solid #7c3aed; }
+
+    /* Warm preview */
+    .prev-warm { background: #1a1209; }
+    .prev-warm .preview-bar { background: linear-gradient(90deg, #d97706, #b45309); }
+    .prev-warm .preview-item { background: #3d2e18; }
+    .prev-warm .preview-item.current { background: linear-gradient(90deg, #2d1a04, #1a1000); border: 1px solid #d97706; }
+
+    /* Display settings */
+    .settings-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.8rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .setting-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .setting-label { font-size: 0.9rem; font-weight: 600; }
+    .setting-desc { font-size: 0.75rem; color: var(--text2); margin-top: 0.2rem; }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative; width: 48px; height: 26px; flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0;
+      background: var(--border2);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      left: 3px; top: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+    /* Select */
+    .select-field {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 0.4rem 0.8rem;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+    }
+    .select-field:focus { border-color: var(--accent); }
+
+    /* Font size slider */
+    .range-wrap { display: flex; align-items: center; gap: 0.8rem; }
+    input[type=range] { accent-color: var(--accent); width: 120px; }
+    .range-val {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text);
+      min-width: 32px;
+      text-align: right;
+    }
+
+    /* Preview panel */
+    #live-preview {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.3s;
+    }
+    .preview-schedule-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.2rem;
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      border: 1px solid transparent;
+    }
+    .preview-schedule-item.current {
+      background: var(--current-bg);
+      border-color: var(--current-border);
+    }
+    .preview-schedule-item.upcoming {
+      background: var(--surface);
+      border-color: var(--border);
+      opacity: 0.7;
+    }
+    .preview-schedule-item.done { opacity: var(--done-opacity); }
+    .pv-num { font-size: 0.7rem; color: var(--text3); width: 20px; text-align: center; }
+    .pv-title { font-size: 1rem; font-weight: 700; }
+    .preview-schedule-item.current .pv-title {
+      background: linear-gradient(90deg, #e0d0ff, #c0d8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .pv-badge {
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid;
+      margin-left: auto;
+    }
+
+    /* Save button */
+    .btn-save {
+      display: block;
+      width: 100%;
+      padding: 0.9rem;
+      background: var(--accent-grad);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: 2rem;
+      transition: filter 0.2s;
+    }
+    .btn-save:hover { filter: brightness(1.1); }
+    .btn-save:active { transform: scale(0.98); }
+
+    .saved-msg {
+      text-align: center;
+      color: #4ade80;
+      font-size: 0.85rem;
+      margin-top: 0.8rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">🎨 디스플레이 설정</div>
+  <div class="header-links">
+    <a href="/display" target="_blank">📺 디스플레이</a>
+    <a href="/admin">⚙️ 관리자</a>
+    <a href="/">🏠 홈</a>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="section-title">테마 선택</div>
+  <div class="theme-grid">
+
+    <div class="theme-card" data-t="dark" onclick="selectTheme('dark')">
+      <div class="theme-preview prev-dark">
+        <div class="preview-bar"></div>
+        <div class="preview-item done"></div>
+        <div class="preview-item current"></div>
+        <div class="preview-item upcoming"></div>
+      </div>
+      <div class="theme-label">
+        <span>다크 (기본)</span>
+        <span class="theme-check">✓</span>
+      </div>
+    </div>
+
+    <div class="theme-card" data-t="black" onclick="selectTheme('black')">
+      <div class="theme-preview prev-black">
+        <div class="preview-bar"></div>
+        <div class="preview-item done"></div>
+        <div class="preview-item current"></div>
+        <div class="preview-item upcoming"></div>
+      </div>
+      <div class="theme-label">
+        <span>블랙</span>
+        <span class="theme-check">✓</span>
+      </div>
+    </div>
+
+    <div class="theme-card" data-t="light" onclick="selectTheme('light')">
+      <div class="theme-preview prev-light">
+        <div class="preview-bar"></div>
+        <div class="preview-item done"></div>
+        <div class="preview-item current"></div>
+        <div class="preview-item upcoming"></div>
+      </div>
+      <div class="theme-label">
+        <span>라이트</span>
+        <span class="theme-check">✓</span>
+      </div>
+    </div>
+
+    <div class="theme-card" data-t="warm" onclick="selectTheme('warm')">
+      <div class="theme-preview prev-warm">
+        <div class="preview-bar"></div>
+        <div class="preview-item done"></div>
+        <div class="preview-item current"></div>
+        <div class="preview-item upcoming"></div>
+      </div>
+      <div class="theme-label">
+        <span>웜 (앰버)</span>
+        <span class="theme-check">✓</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-title" style="margin-top:2rem;">디스플레이 설정</div>
+  <div class="settings-card">
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">글자 크기</div>
+        <div class="setting-desc">디스플레이 화면 기본 글자 크기</div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" min="12" max="32" value="16" id="fontSize"
+          oninput="onFontSize(this.value)">
+        <span class="range-val" id="fontSizeVal">16px</span>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">스크롤 애니메이션</div>
+        <div class="setting-desc">순서 이동 시 부드러운 전환 효과</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="smoothScroll" checked onchange="save()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">완료 항목 흐리게</div>
+        <div class="setting-desc">지나간 순서를 반투명하게 표시</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="fadeDone" checked onchange="save()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">현재 항목 강조 효과</div>
+        <div class="setting-desc">현재 순서에 빛나는 테두리 애니메이션</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="pulseEffect" checked onchange="save()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">시계 표시</div>
+        <div class="setting-desc">디스플레이 상단에 현재 시각 표시</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="showClock" checked onchange="save()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">화면에 표시할 항목 수</div>
+        <div class="setting-desc">디스플레이에 한 번에 보이는 순서 개수</div>
+      </div>
+      <select class="select-field" id="visibleCount" onchange="save()">
+        <option value="all">전체</option>
+        <option value="5">5개</option>
+        <option value="7" selected>7개</option>
+        <option value="10">10개</option>
+      </select>
+    </div>
+
+  </div>
+
+  <div class="section-title">미리보기</div>
+  <div id="live-preview">
+    <div class="preview-schedule-item done">
+      <span class="pv-num">1</span>
+      <span class="pv-title">예배 부름</span>
+      <span class="pv-badge" style="border-color:#10b981;color:#10b981;">기도</span>
+    </div>
+    <div class="preview-schedule-item current">
+      <span class="pv-num">2</span>
+      <span class="pv-title">찬양 및 경배</span>
+      <span class="pv-badge" style="border-color:#f59e0b;color:#f59e0b;">경배찬양</span>
+    </div>
+    <div class="preview-schedule-item upcoming">
+      <span class="pv-num">3</span>
+      <span class="pv-title">설교</span>
+      <span class="pv-badge" style="border-color:#3b82f6;color:#3b82f6;">설교</span>
+    </div>
+  </div>
+
+  <button class="btn-save" onclick="save()">✅ 설정 저장</button>
+  <div class="saved-msg" id="saved-msg">✓ 저장되었습니다. 모든 화면에 즉시 적용됩니다.</div>
+
+</div>
+
+<script>
+const SETTINGS_KEY = 'service-scroller-settings';
+
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; }
+}
+
+function save() {
+  const s = {
+    theme: ThemeManager.getTheme(),
+    fontSize: document.getElementById('fontSize').value,
+    smoothScroll: document.getElementById('smoothScroll').checked,
+    fadeDone: document.getElementById('fadeDone').checked,
+    pulseEffect: document.getElementById('pulseEffect').checked,
+    showClock: document.getElementById('showClock').checked,
+    visibleCount: document.getElementById('visibleCount').value,
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  const msg = document.getElementById('saved-msg');
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 3000);
+}
+
+function selectTheme(theme) {
+  ThemeManager.applyTheme(theme);
+  document.querySelectorAll('.theme-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.t === theme);
+  });
+  save();
+}
+
+function onFontSize(val) {
+  document.getElementById('fontSizeVal').textContent = val + 'px';
+  save();
+}
+
+// Init
+const s = loadSettings();
+const theme = ThemeManager.getTheme();
+document.querySelectorAll('.theme-card').forEach(c => {
+  c.classList.toggle('active', c.dataset.t === theme);
+});
+
+if (s.fontSize) {
+  document.getElementById('fontSize').value = s.fontSize;
+  document.getElementById('fontSizeVal').textContent = s.fontSize + 'px';
+}
+if (s.smoothScroll !== undefined) document.getElementById('smoothScroll').checked = s.smoothScroll;
+if (s.fadeDone !== undefined) document.getElementById('fadeDone').checked = s.fadeDone;
+if (s.pulseEffect !== undefined) document.getElementById('pulseEffect').checked = s.pulseEffect;
+if (s.showClock !== undefined) document.getElementById('showClock').checked = s.showClock;
+if (s.visibleCount) document.getElementById('visibleCount').value = s.visibleCount;
+</script>
+</body>
+</html>
