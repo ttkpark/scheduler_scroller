@@ -8,6 +8,8 @@ WorkingDirectory=/opt/scheduler_scroller
 ExecStart=/bin/bash /opt/scheduler_scroller/scripts/start_linux.sh
 Restart=always
 Environment=NODE_ENV=production
+# 리소스가 적은 서버에서 EasyOCR(torch)를 쓰지 않으려면 아래 주석 해제
+# Environment=DISABLE_EASYOCR=1
 
 [Install]
 WantedBy=multi-user.target

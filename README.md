@@ -189,8 +189,29 @@ npm-debug.log*
 - **`PYTHON_CMD`**: Node 서버가 사용할 Python 실행 파일 경로.  
   - 설정하지 않으면 `python`, `python3`, `py` 순으로 자동 탐색합니다.
   - venv를 사용할 경우, 위 예시처럼 venv Python 경로를 지정해 주세요.
+- **`DISABLE_EASYOCR`**: `1`, `true`, `yes` 중 하나면 **EasyOCR를 전혀 호출하지 않습니다.**  
+  이후 순서는 GPT-4o Vision → Claude Vision → Tesseract 입니다. (리소스가 적은 서버에 권장)
+- **`OCR_ENGINE`**: `tesseract` 또는 `tesseract-only` 로 두면 **`DISABLE_EASYOCR=1`과 동일**하게 EasyOCR를 건너뜁니다.
+- **`EASYOCR_TIMEOUT_MS`**: EasyOCR 응답 대기 시간(밀리초). 기본 `180000`(180초).
 - **`OPENAI_API_KEY`**: 설정 시 GPT-4o Vision을 사용한 OCR 폴백이 활성화됩니다.
 - **`ANTHROPIC_API_KEY`**: 설정 시 Claude Vision을 사용한 OCR 폴백이 활성화됩니다.
+
+### systemd에서 EasyOCR 끄기 예시
+
+`/etc/systemd/system/scheduler_scroller.service`의 `[Service]`에 한 줄 추가:
+
+```ini
+Environment=DISABLE_EASYOCR=1
+```
+
+그 다음:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart scheduler_scroller.service
+```
+
+부팅 시 로그에 `OCR 엔진:   Tesseract (EasyOCR 끔)` 처럼 표시되면 적용된 것입니다.
 
 ---
 

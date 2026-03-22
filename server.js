@@ -189,11 +189,26 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  Controller: http://localhost:${PORT}/controller`);
   console.log(`  Admin:      http://localhost:${PORT}/admin`);
   console.log(`  Settings:   http://localhost:${PORT}/settings`);
-  const ocrEngine = process.env.OPENAI_API_KEY
-    ? 'GPT-4o Vision'
-    : process.env.ANTHROPIC_API_KEY
-    ? 'Claude Vision'
-    : 'EasyOCR (실패 시 Tesseract)';
+  const easyOff = (() => {
+    const d = (process.env.DISABLE_EASYOCR || '').toLowerCase().trim();
+    if (d === '1' || d === 'true' || d === 'yes') return true;
+    const e = (process.env.OCR_ENGINE || '').toLowerCase().trim();
+    return e === 'tesseract' || e === 'tesseract-only';
+  })();
+  let ocrEngine;
+  if (easyOff) {
+    ocrEngine = process.env.OPENAI_API_KEY
+      ? 'GPT-4o Vision (EasyOCR 끔)'
+      : process.env.ANTHROPIC_API_KEY
+      ? 'Claude Vision (EasyOCR 끔)'
+      : 'Tesseract (EasyOCR 끔)';
+  } else {
+    ocrEngine = process.env.OPENAI_API_KEY
+      ? 'GPT-4o Vision'
+      : process.env.ANTHROPIC_API_KEY
+      ? 'Claude Vision'
+      : 'EasyOCR (실패 시 Tesseract)';
+  }
   console.log(`  OCR 엔진:   ${ocrEngine}\n`);
 });
 
